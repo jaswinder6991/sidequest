@@ -1,0 +1,4 @@
+import type { Coordinates, Discovery } from '../data';
+export type Route = { coordinates: Coordinates[]; duration?: number };
+export async function enrichDiscovery(discovery: Discovery, intent: string): Promise<string | null> { try { const response = await fetch('/api/discover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discovery, intent }) }); if (!response.ok) return null; return (await response.json() as { story: string }).story; } catch { return null; } }
+export async function getWalkingRoute(from: Coordinates, to: Coordinates): Promise<Route | null> { try { const response = await fetch('/api/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) }); return response.ok ? await response.json() as Route : null; } catch { return null; } }
