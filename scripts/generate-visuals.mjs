@@ -2,7 +2,7 @@
 // Pre-generating matters: the visitor judges a place by looking at it, and a
 // twelve-second wait at the decision point is not a decision, it is a loading screen.
 //   FAL_KEY=... node scripts/generate-visuals.mjs [--force] [id ...]
-import { writeFile, access } from 'node:fs/promises';
+import { writeFile, access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fal } from '@fal-ai/client';
@@ -12,10 +12,14 @@ const outDir = path.join(root, 'public', 'discoveries');
 
 if (!process.env.FAL_KEY) { console.error('FAL_KEY is not set. Add it to .env, then: node --env-file-if-exists=.env scripts/generate-visuals.mjs'); process.exit(1); }
 
-const source = await readFileText(path.join(root, 'src', 'data.ts'));
-const prompts = await readFileText(path.join(root, 'src', 'lib', 'creative.ts'));
+// Both paths are fixed literals inside the repo; nothing here is caller-supplied.
+const source = await readFile(path.join(root, 'src', 'data.ts'), 'utf8');
+const prompts = await readFile(path.join(root, 'src', 'lib', 'creative.ts'), 'utf8');
 const wrapper = prompts.match(/return `([\s\S]*?)`;/)?.[1] ?? '';
-const entries = [...source.matchAll(/\{ id: '([^']+)'[\s\S]*?visualDirection: '((?:[^'\\]|\\.)*)'/g)].map(m => ({ id: m[1], direction: m[2].replace(/\\'/g, "'") }));
+const entries = [...source.matchAll(/\{ id: '([^']+)'[\s\S]*?visualDirection: '((?:[^'\\]|\\.)*)'/g)]
+  .map(m => ({ id: m[1], direction: m[2].replace(/\\'/g, "'") }))
+  // An id becomes a filename, so refuse anything that is not a plain slug.
+  .filter(entry => { if (/^[a-z0-9][a-z0-9-]{0,63}$/.test(entry.id)) return true; console.warn(`skipping unsafe id: ${entry.id}`); return false; });
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
@@ -42,4 +46,3 @@ for (const entry of targets) {
 console.log(`\n${made} of ${targets.length} written to public/discoveries/`);
 
 async function exists(file) { try { await access(file); return true; } catch { return false; } }
-async function readFileText(file) { const { readFile } = await import('node:fs/promises'); return readFile(file, 'utf8'); }

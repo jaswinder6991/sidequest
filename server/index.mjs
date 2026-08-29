@@ -2,11 +2,42 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { Readable } from 'node:stream';
+import helmet from 'helmet';
 import { fal } from '@fal-ai/client';
 
 const app = express();
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-app.use(express.json());
+
+// Only these origins are ever loaded by the browser. Every provider key stays
+// server-side, so the page itself never talks to Cala, Fal, ElevenLabs or the
+// routers directly and none of them belong in connect-src.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'"],
+      // React sets element style attributes and Leaflet positions its panes inline.
+      'style-src': ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      'font-src': ["'self'", 'https://fonts.gstatic.com'],
+      'img-src': ["'self'", 'data:', 'blob:', 'https://*.tile.openstreetmap.org', 'https://*.fal.media'],
+      'media-src': ["'self'", 'blob:'],
+      'connect-src': ["'self'"],
+      'frame-ancestors': ["'none'"],
+      'object-src': ["'none'"],
+      'base-uri': ["'self'"],
+      'form-action': ["'self'"],
+      'upgrade-insecure-requests': process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  // Tiles and fonts are cross-origin; requiring CORP on them would block both.
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'no-referrer' },
+}));
+
+// Every endpoint here takes a small JSON object; nothing needs the 100kb default.
+app.use(express.json({ limit: '32kb' }));
 
 app.post('/api/discover', async (request, response) => {
   const { discovery, intent = 'Surprise me' } = request.body ?? {};
