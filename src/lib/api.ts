@@ -1,7 +1,8 @@
 import type { Coordinates, Discovery } from '../data';
-export type Route = { coordinates: Coordinates[]; duration?: number; distance?: number; instruction?: string };
+export type RouteLeg = { coordinates: Coordinates[]; distance: number; duration: number; instruction?: string };
+export type Route = { provider: string; legs: RouteLeg[] };
 export type CalaSource = { content: string; references?: string[] };
 export type EnrichedDiscovery = { story: string; sources: CalaSource[] };
 export async function enrichDiscovery(discovery: Discovery, intent: string): Promise<EnrichedDiscovery | null> { try { const response = await fetch('/api/discover', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discovery, intent }) }); if (!response.ok) return null; const result = await response.json() as { story?: string; sources?: CalaSource[] }; return result.story ? { story: result.story, sources: result.sources ?? [] } : null; } catch { return null; } }
-export async function getWalkingRoute(from: Coordinates, to: Coordinates): Promise<Route | null> { try { const response = await fetch('/api/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to }) }); return response.ok ? await response.json() as Route : null; } catch { return null; } }
+export async function getWalkingRoute(coordinates: Coordinates[]): Promise<Route | null> { if (coordinates.length < 2) return null; try { const response = await fetch('/api/route', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates }) }); if (!response.ok) return null; const route = await response.json() as Route; return route.legs?.length ? route : null; } catch { return null; } }
 export async function generateHistoricalVisual(prompt: string): Promise<string | null> { try { const response = await fetch('/api/visual', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) }); if (!response.ok) return null; return (await response.json() as { imageUrl?: string }).imageUrl || null; } catch { return null; } }

@@ -17,14 +17,18 @@ else try {
   add('Cala (stories)', r.ok ? 'ok' : 'fail', r.ok ? `${body.length} bytes back` : `HTTP ${r.status} — ${body.slice(0, 90)}`);
 } catch (e) { add('Cala (stories)', 'fail', e.message); }
 
-// 2. openrouteservice — real walking routes
-if (!process.env.OPENROUTESERVICE_API_KEY) add('Routing (walking lines)', 'off', 'OPENROUTESERVICE_API_KEY not set — map draws a straight dashed line');
-else try {
-  const r = await fetch('https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson', { method: 'POST', headers: { Authorization: process.env.OPENROUTESERVICE_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: [[2.1768, 41.3831], [2.1773, 41.3837]] }) });
-  const body = await r.json().catch(() => ({}));
-  const seconds = body?.features?.[0]?.properties?.summary?.duration;
-  add('Routing (walking lines)', r.ok ? 'ok' : 'fail', r.ok ? `test route: ${Math.round(seconds)}s on foot` : `HTTP ${r.status}`);
-} catch (e) { add('Routing (walking lines)', 'fail', e.message); }
+// 2. Walking routes — a key is optional now, there is a keyless fallback
+try {
+  const probe = 'https://routing.openstreetmap.de/routed-foot/route/v1/foot/2.1768,41.3831;2.1773,41.3837?overview=false';
+  if (process.env.OPENROUTESERVICE_API_KEY) {
+    const r = await fetch('https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson', { method: 'POST', headers: { Authorization: process.env.OPENROUTESERVICE_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: [[2.1768, 41.3831], [2.1773, 41.3837]] }) });
+    add('Routing (real streets)', r.ok ? 'ok' : 'fail', r.ok ? 'openrouteservice key works' : `openrouteservice HTTP ${r.status} — will fall back to OSRM`);
+  } else {
+    const r = await fetch(probe);
+    const body = await r.json().catch(() => ({}));
+    add('Routing (real streets)', r.ok && body.code === 'Ok' ? 'ok' : 'fail', r.ok && body.code === 'Ok' ? 'public OSRM foot service (no key needed)' : 'OSRM unreachable — map falls back to straight lines');
+  }
+} catch (e) { add('Routing (real streets)', 'fail', e.message); }
 
 // 3. ElevenLabs — the guide's voice
 if (!process.env.ELEVENLABS_API_KEY || !process.env.ELEVENLABS_VOICE_ID) add('ElevenLabs (voice)', 'off', 'ELEVENLABS_API_KEY / ELEVENLABS_VOICE_ID not set — browser speech is used');

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { discoveries, startingPoint, type Coordinates, type Discovery, type Intent } from './data';
 import { enrichDiscovery, generateHistoricalVisual, getWalkingRoute, type CalaSource, type Route } from './lib/api';
 import { falPrompt, visualFor } from './lib/creative';
@@ -6,6 +6,17 @@ import { createTourPlan, emptyMemory, estimateMinutes, metersBetween, orderByPro
 import { TourMap } from './TourMap';
 
 type Stage = 'start' | 'plan' | 'walk' | 'story' | 'complete';
+function useSheetInset<S extends HTMLElement, T extends HTMLElement>() {
+  const screen = useRef<S | null>(null); const sheet = useRef<T | null>(null);
+  useEffect(() => {
+    const panel = sheet.current; const host = screen.current; if (!panel || !host) return;
+    const apply = () => host.style.setProperty('--map-inset', `${panel.offsetHeight}px`);
+    apply(); const observer = new ResizeObserver(apply); observer.observe(panel);
+    return () => observer.disconnect();
+  }, []);
+  return { screen, sheet };
+}
+
 const plural = (n: number) => `${n} ${n === 1 ? 'story' : 'stories'}`;
 const moods: [string, Intent][] = [['🕵️', 'Discover something new'], ['🏛️', 'Go deeper on history'], ['🎨', 'Art & culture'], ['👻', 'Weird stories'], ['🍷', 'Local life'], ['🎲', 'Surprise me']];
 
@@ -35,17 +46,43 @@ export function App() {
   const [preview, setPreview] = useState<Discovery | null>(null);
   const [replanNote, setReplanNote] = useState<string | null>(null);
   const [excluded, setExcluded] = useState<string[]>([]);
+  const [livePosition, setLivePosition] = useState<Coordinates | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const activeIndex = Math.max(0, tourPlan.findIndex(item => item.discovery.id === active.id));
   const routeFrom: Coordinates = activeIndex > 0 ? tourPlan[activeIndex - 1].discovery.coordinates : startingPoint;
   const plannedStops = useMemo(() => tourPlan.map(item => item.discovery), [tourPlan]);
+  // A live fix far from the Gothic Quarter is real but useless here: show it, do not frame to it.
+  const farFromWalk = livePosition ? metersBetween(livePosition, startingPoint) > 5000 : false;
   // Everything still on the table: not planned, not already walked.
   const offPlan = useMemo(() => discoveries.filter(d => !tourPlan.some(i => i.discovery.id === d.id) && !memory.seenIds.includes(d.id)), [tourPlan, memory]);
 
-  useEffect(() => { if (stage === 'plan' || stage === 'walk') { setRoute(null); void getWalkingRoute(routeFrom, active.coordinates).then(setRoute); } }, [stage, routeFrom, active]);
+  const routeChain = useMemo<Coordinates[]>(() => tourPlan.length ? [startingPoint, ...tourPlan.map(item => item.discovery.coordinates)] : [], [tourPlan]);
+  const chainKey = routeChain.map(point => point.join()).join('|');
+  useEffect(() => {
+    if (stage !== 'plan' && stage !== 'walk') return;
+    if (routeChain.length < 2) { setRoute(null); return; }
+    let live = true;
+    void getWalkingRoute(routeChain).then(result => { if (live) setRoute(result); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, chainKey]);
   useEffect(() => { if (stage === 'story') { const cached = calaStories[active.id]; if (cached) { setCalaStory(cached.story); return; } setCalaStory(null); void enrichDiscovery(active, intent).then(result => { if (result) setCalaStories(current => ({ ...current, [active.id]: result })); setCalaStory(result?.story ?? null); }); } }, [stage, active, intent, calaStories]);
   // Narration must never follow the visitor onto the next screen.
   useEffect(() => { window.speechSynthesis?.cancel(); setSpeaking(false); }, [stage, active]);
   useEffect(() => () => window.speechSynthesis?.cancel(), []);
+  // Real GPS, opt-in. Indoors at a demo it would put you in the wrong city, so
+  // the simulated position stays the default and this is a deliberate switch.
+  useEffect(() => {
+    if (!locating) { setLivePosition(null); return; }
+    if (!('geolocation' in navigator)) { setLocationError('This browser cannot share a location.'); setLocating(false); return; }
+    const watch = navigator.geolocation.watchPosition(
+      position => { setLocationError(null); setLivePosition([position.coords.latitude, position.coords.longitude]); },
+      error => { setLocationError(error.code === error.PERMISSION_DENIED ? 'Location permission denied.' : 'Could not get a location fix.'); setLocating(false); },
+      { enableHighAccuracy: true, maximumAge: 10_000, timeout: 12_000 });
+    return () => navigator.geolocation.clearWatch(watch);
+  }, [locating]);
+
   // The interruption is the point: it arrives unasked, part-way into the second leg.
   useEffect(() => {
     if (stage !== 'walk' || detourSettled || activeIndex !== 1) return;
@@ -152,8 +189,8 @@ export function App() {
   return <main className="app"><section className="phone-frame">
     <header className="app-header"><button className="bare" aria-label="Restart the walk" onClick={restart}>☰</button><span className="wordmark"><i>✦</i> SideQuest</span><button className="bare" aria-label="Profile">◌</button></header>
     {stage === 'start' && <Start {...{ intent, duration, planning, setIntent, setDuration, begin }} />}
-    {stage === 'plan' && <RouteOverview stops={plannedStops} route={route} first={active} candidates={offPlan} onSelectCandidate={setPreview} note={replanNote} dismissNote={dismissNote} start={() => setStage('walk')} />}
-    {stage === 'walk' && <Walk active={active} index={activeIndex} stops={plannedStops} route={route} from={routeFrom} candidates={offPlan} onSelectCandidate={setPreview} skip={skipStop} note={replanNote} dismissNote={dismissNote} speaking={speaking} speak={speak} arrive={() => setStage('story')} />}
+    {stage === 'plan' && <RouteOverview stops={plannedStops} route={route} first={active} here={farFromWalk ? undefined : livePosition ?? undefined} candidates={offPlan} onSelectCandidate={setPreview} note={replanNote} dismissNote={dismissNote} start={() => setStage('walk')} />}
+    {stage === 'walk' && <Walk active={active} index={activeIndex} stops={plannedStops} route={route} from={routeFrom} here={farFromWalk ? undefined : livePosition ?? undefined} locating={locating} toggleLocating={() => { setLocationError(null); setLocating(value => !value); }} locationNote={locationError ?? (farFromWalk ? 'You are far from this walk — showing the planned route.' : null)} candidates={offPlan} onSelectCandidate={setPreview} skip={skipStop} note={replanNote} dismissNote={dismissNote} speaking={speaking} speak={speak} arrive={() => setStage('story')} />}
     {stage === 'story' && <Story active={active} index={activeIndex} total={tourPlan.length} story={calaStories[active.id]?.story || calaStory || active.story} sources={calaStories[active.id]?.sources ?? []} visualUrl={historicalVisuals[active.id] ?? (heroMissing[active.id] ? undefined : visualFor(active))} revealed={revealedIds.includes(active.id)} onImageMissing={() => setHeroMissing(current => ({ ...current, [active.id]: true }))} generatingVisual={generatingVisual} visualError={visualError} revealThePast={revealThePast} speaking={speaking} speak={speak} why={() => setWhyOpen(true)} next={continueWalk} />}
     {stage === 'complete' && <Complete count={tourPlan.length} memory={memory} restart={restart} />}
     {preview && <PlacePreview discovery={preview} from={stage === 'plan' ? startingPoint : routeFrom} intent={intent} memory={memory} planning={stage === 'plan'} plannedIndex={tourPlan.findIndex(item => item.discovery.id === preview.id)} go={() => takePlace(preview, count => stage === 'plan' ? `Added ${preview.location} — now ${count}.` : `Heading to ${preview.location} — now ${count}.`)} remove={() => removeStop(preview)} close={() => setPreview(null)} />}
@@ -172,15 +209,21 @@ function Start({ intent, duration, planning, setIntent, setDuration, begin }: { 
   return <section className="screen start-screen"><div><p className="eyebrow">BARCELONA · GOTHIC QUARTER</p><h2>Your city,<br /><em>unexpectedly.</em></h2><p className="intro">Tell me how you want to feel. I’ll find the stories worth walking for.</p><div className="duration-row" role="group" aria-label="Walk length">{[30, 60, 90].map(v => <button key={v} type="button" aria-pressed={duration === v} onClick={() => setDuration(v)} className={duration === v ? 'selected' : ''}>{v === 60 ? '1 hour' : `${v} min`}</button>)}</div><div className="mood-grid" role="group" aria-label="Mood">{moods.map(([emoji, label]) => <button key={label} type="button" aria-pressed={intent === label} onClick={() => setIntent(label)} className={intent === label ? 'mood active' : 'mood'}><span>{emoji}</span>{label}{label === 'Surprise me' && <b>↗</b>}</button>)}</div></div><button className="primary" disabled={planning} onClick={begin}>{planning ? 'Finding a story worth walking for…' : 'Alright, let’s wander'} <span>{planning ? '✦' : '→'}</span></button></section>;
 }
 
-function RouteOverview({ stops, route, first, candidates, onSelectCandidate, note, dismissNote, start }: { stops: Discovery[]; route: Route | null; first: Discovery; candidates: Discovery[]; onSelectCandidate: (d: Discovery) => void; note: string | null; dismissNote: () => void; start: () => void }) {
-  const estimate = estimateMinutes(stops, startingPoint);
+function RouteOverview({ stops, route, first, here, candidates, onSelectCandidate, note, dismissNote, start }: { stops: Discovery[]; route: Route | null; first: Discovery; here?: Coordinates; candidates: Discovery[]; onSelectCandidate: (d: Discovery) => void; note: string | null; dismissNote: () => void; start: () => void }) {
+  const { screen, sheet } = useSheetInset<HTMLElement, HTMLDivElement>();
+  // Real walking durations when routing gave them, straight-line maths only as a fallback.
+  const estimate = route?.legs?.length
+    ? Math.round(stops.reduce((total, stop) => total + stop.minutes, 0) + route.legs.reduce((total, leg) => total + leg.duration, 0) / 60)
+    : estimateMinutes(stops, startingPoint);
   const stories = `${stops.length} ${stops.length === 1 ? 'STORY' : 'STORIES'}`;
-  return <section className="screen route-overview"><TourMap origin={startingPoint} from={startingPoint} to={first.coordinates} route={route?.coordinates} stops={stops} candidates={candidates} onSelectCandidate={onSelectCandidate} activeIndex={0} bottomInset={.55} full /><div className="route-sheet">{note && <button className="replan-note inline" onClick={dismissNote}>✦ {note}</button>}<p className="eyebrow">YOUR WALK · {stories} · ≈{estimate} MIN</p><h2>Follow one thread<br /><em>through the quarter.</em></h2><p className="route-intro">Ordered so you never double back. Tap any ✦ on the map to see the place and decide for yourself.</p><ol className="itinerary">{stops.map((stop, index) => <li key={stop.id} className={index === 0 ? 'next' : ''}><button type="button" className="itinerary-row" onClick={() => onSelectCandidate(stop)}><b>{index + 1}</b><PlaceVisual discovery={stop} className="itinerary-thumb" /><div><strong>{stop.location}</strong><span>{index === 0 ? `${stop.minutes} min · Start here` : stop.subtitle}</span></div><i>{index === 0 ? '→' : '›'}</i></button></li>)}</ol><button className="primary" onClick={start}>Start at {first.location} <span>→</span></button></div></section>;
+  return <section className="screen route-overview" ref={screen}><TourMap origin={startingPoint} from={startingPoint} here={here} to={first.coordinates} legs={route?.legs} stops={stops} candidates={candidates} onSelectCandidate={onSelectCandidate} activeIndex={0} bottomInset={.62} full /><div className="route-sheet" ref={sheet}>{note && <button className="replan-note inline" onClick={dismissNote}>✦ {note}</button>}<p className="eyebrow">YOUR WALK · {stories} · ≈{estimate} MIN</p><h2>Follow one thread<br /><em>through the quarter.</em></h2><p className="route-intro">Ordered so you never double back. Tap any ✦ on the map to see the place and decide for yourself.</p><ol className="itinerary">{stops.map((stop, index) => <li key={stop.id} className={index === 0 ? 'next' : ''}><button type="button" className="itinerary-row" onClick={() => onSelectCandidate(stop)}><b>{index + 1}</b><PlaceVisual discovery={stop} className="itinerary-thumb" /><div><strong>{stop.location}</strong><span>{index === 0 ? `${stop.minutes} min · Start here` : stop.subtitle}</span></div><i>{index === 0 ? '→' : '›'}</i></button></li>)}</ol><button className="primary" onClick={start}>Start at {first.location} <span>→</span></button></div></section>;
 }
 
-function Walk({ active, index, stops, route, from, candidates, onSelectCandidate, skip, note, dismissNote, speaking, speak, arrive }: { active: Discovery; index: number; stops: Discovery[]; route: Route | null; from: Coordinates; candidates: Discovery[]; onSelectCandidate: (d: Discovery) => void; skip: () => void; note: string | null; dismissNote: () => void; speaking: boolean; speak: () => void; arrive: () => void }) {
-  const minutes = route?.duration ? Math.max(1, Math.round(route.duration / 60)) : active.minutes;
-  return <section className="screen navigator-screen"><TourMap origin={startingPoint} from={from} to={active.coordinates} route={route?.coordinates} stops={stops} candidates={candidates} onSelectCandidate={onSelectCandidate} activeIndex={index} bottomInset={.34} full /><div className="navigator-top"><span>WALK {index + 1} OF {stops.length}</span><strong>{active.location}</strong>{!route && <em className="estimate-chip">straight-line estimate</em>}{note && <button className="replan-note" onClick={dismissNote}>✦ {note}</button>}</div><div className="navigator-panel"><div className="walk-progress">{stops.map((stop, stopIndex) => <i key={stop.id} className={stopIndex <= index ? 'done' : ''} />)}</div><p className="eyebrow">NEXT STOP · {minutes} MINUTES AWAY</p><h2>{active.hook}</h2><p>{route?.instruction ? `First move: ${route.instruction}` : 'Follow the orange line; your next story is waiting at the marker.'}</p><div className="navigator-actions"><button className={speaking ? 'voice mini playing' : 'voice mini'} onClick={speak}><span>{speaking ? '◼' : '▶'}</span><strong>{speaking ? 'Stop' : 'Preview'}</strong></button><button className="primary compact" onClick={arrive}>I’m here <span>→</span></button></div><button className="skip-stop" onClick={skip}>Not feeling this one — find me something else</button></div></section>;
+function Walk({ active, index, stops, route, from, here, locating, toggleLocating, locationNote, candidates, onSelectCandidate, skip, note, dismissNote, speaking, speak, arrive }: { active: Discovery; index: number; stops: Discovery[]; route: Route | null; from: Coordinates; here?: Coordinates; locating: boolean; toggleLocating: () => void; locationNote: string | null; candidates: Discovery[]; onSelectCandidate: (d: Discovery) => void; skip: () => void; note: string | null; dismissNote: () => void; speaking: boolean; speak: () => void; arrive: () => void }) {
+  const { screen, sheet } = useSheetInset<HTMLElement, HTMLDivElement>();
+  const leg = route?.legs?.[index];
+  const minutes = leg?.duration ? Math.max(1, Math.round(leg.duration / 60)) : active.minutes;
+  return <section className="screen navigator-screen" ref={screen}><TourMap origin={startingPoint} from={from} here={here} to={active.coordinates} legs={route?.legs} stops={stops} candidates={candidates} onSelectCandidate={onSelectCandidate} activeIndex={index} bottomInset={.34} full /><div className="navigator-top"><span>WALK {index + 1} OF {stops.length}</span><strong>{active.location}</strong>{!leg && <em className="estimate-chip">straight-line estimate</em>}<button type="button" className={locating ? 'gps-toggle on' : 'gps-toggle'} onClick={toggleLocating}>◉ {locating ? (here ? 'Live location on' : 'Finding you…') : 'Use my location'}</button>{locationNote && <em className="estimate-chip warn">{locationNote}</em>}{note && <button className="replan-note" onClick={dismissNote}>✦ {note}</button>}</div><div className="navigator-panel" ref={sheet}><div className="walk-progress">{stops.map((stop, stopIndex) => <i key={stop.id} className={stopIndex <= index ? 'done' : ''} />)}</div><p className="eyebrow">NEXT STOP · {minutes} {minutes === 1 ? 'MINUTE' : 'MINUTES'} AWAY</p><h2>{active.hook}</h2><p>{leg?.instruction ? `Head along ${leg.instruction} — ${Math.round(leg.distance)}m on foot.` : 'Follow the orange line; your next story is waiting at the marker.'}</p><div className="navigator-actions"><button className={speaking ? 'voice mini playing' : 'voice mini'} onClick={speak}><span>{speaking ? '◼' : '▶'}</span><strong>{speaking ? 'Stop' : 'Preview'}</strong></button><button className="primary compact" onClick={arrive}>I’m here <span>→</span></button></div><button className="skip-stop" onClick={skip}>Not feeling this one — find me something else</button></div></section>;
 }
 
 function PlacePreview({ discovery, from, intent, memory, planning, plannedIndex, go, remove, close }: { discovery: Discovery; from: Coordinates; intent: Intent; memory: TourMemory; planning: boolean; plannedIndex: number; go: () => void; remove: () => void; close: () => void }) {
