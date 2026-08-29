@@ -71,3 +71,16 @@
 .historical-visual{opacity:0;transition:opacity .85s ease}
 .historical-visual.revealed{opacity:1}
 .hero-art .arch{transition:opacity .85s ease}
+
+/* You are here: a soft pulse under a solid core, the usual map convention */
+.map-here{position:relative;display:block;width:22px;height:22px}
+.map-here i{position:absolute;inset:0;border-radius:50%;background:#2f6df6;opacity:.22;animation:hereping 2.4s ease-out infinite}
+.map-here b{position:absolute;inset:5px;border-radius:50%;background:#2f6df6;border:3px solid #fff;box-shadow:0 2px 8px #0e1a2e66}
+@keyframes hereping{0%{transform:scale(.55);opacity:.42}70%{transform:scale(1.55);opacity:0}100%{transform:scale(1.55);opacity:0}}
+@media (prefers-reduced-motion: reduce){.map-here i{animation:none;transform:scale(1.1)}}
+.map-dot.numbered.done{color:#6d7a70;border-color:#efe9dccc;font-size:12px}
+.estimate-chip{font:8px "DM Mono";letter-spacing:.7px;text-transform:uppercase;font-style:normal;color:#8a7566;background:#fffdf9e8;padding:4px 7px;border-radius:4px;box-shadow:0 2px 10px #1a21191b}
+/* A long itinerary must not eat the map: cap the sheet, scroll the list inside it */
+.route-sheet{max-height:62%;display:flex;flex-direction:column}
+.route-sheet .itinerary{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.route-sheet .primary{flex:none}
