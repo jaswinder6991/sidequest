@@ -20,16 +20,37 @@ app.post('/api/discover', async (request, response) => {
   } catch { response.status(502).json({ error: 'Cala is unreachable' }); }
 });
 
+// Routes the whole itinerary in one call and returns each leg separately, so the
+// map can style them independently. openrouteservice when a key is present,
+// otherwise the public OSRM foot service, which needs no key at all.
 app.post('/api/route', async (request, response) => {
-  const { from, to } = request.body ?? {};
-  if (!Array.isArray(from) || !Array.isArray(to) || !process.env.OPENROUTESERVICE_API_KEY) return response.status(503).json({ error: 'Routing is not configured' });
-  const [fromLat, fromLng] = from; const [toLat, toLng] = to;
-  const url = 'https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson';
+  const points = Array.isArray(request.body?.coordinates) ? request.body.coordinates
+    : [request.body?.from, request.body?.to].filter(Array.isArray);
+  if (points.length < 2 || points.some(point => point.length !== 2)) return response.status(400).json({ error: 'Need at least two [lat, lng] points' });
+  const asLngLat = points.map(([lat, lng]) => [lng, lat]);
   try {
-    const ors = await fetch(url, { method: 'POST', headers: { Authorization: process.env.OPENROUTESERVICE_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: [[fromLng, fromLat], [toLng, toLat]] }) });
-    if (!ors.ok) return response.status(502).json({ error: 'Routing request failed' });
-    const result = await ors.json(); const feature = result.features?.[0]; const firstStep = feature?.properties?.segments?.[0]?.steps?.[0];
-    response.json({ coordinates: feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]), duration: feature.properties.summary.duration, distance: feature.properties.summary.distance, instruction: firstStep?.instruction });
+    if (process.env.OPENROUTESERVICE_API_KEY) {
+      const ors = await fetch('https://api.heigit.org/openrouteservice/v2/directions/foot-walking/geojson', {
+        method: 'POST', headers: { Authorization: process.env.OPENROUTESERVICE_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coordinates: asLngLat }) });
+      if (ors.ok) {
+        const feature = (await ors.json()).features?.[0];
+        const line = feature?.geometry?.coordinates ?? [];
+        const marks = feature?.properties?.way_points ?? [];
+        const legs = (feature?.properties?.segments ?? []).map((segment, index) => ({
+          coordinates: line.slice(marks[index] ?? 0, (marks[index + 1] ?? line.length - 1) + 1).map(([lng, lat]) => [lat, lng]),
+          distance: segment.distance, duration: segment.duration, instruction: segment.steps?.[0]?.instruction }));
+        if (legs.length) return response.json({ provider: 'openrouteservice', legs });
+      }
+    }
+    const osrm = await fetch(`https://routing.openstreetmap.de/routed-foot/route/v1/foot/${asLngLat.map(pair => pair.join(',')).join(';')}?overview=full&geometries=geojson&steps=true`);
+    if (!osrm.ok) return response.status(502).json({ error: 'Routing request failed' });
+    const result = await osrm.json();
+    if (result.code !== 'Ok' || !result.routes?.length) return response.status(502).json({ error: `Routing failed: ${result.code}` });
+    const legs = result.routes[0].legs.map(leg => ({
+      coordinates: leg.steps.flatMap(step => step.geometry.coordinates).map(([lng, lat]) => [lat, lng]),
+      distance: leg.distance, duration: leg.duration, instruction: leg.steps?.[0]?.name || undefined }));
+    response.json({ provider: 'osrm-foot', legs });
   } catch { response.status(502).json({ error: 'Routing is unreachable' }); }
 });
 

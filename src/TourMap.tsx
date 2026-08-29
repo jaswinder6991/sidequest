@@ -4,7 +4,7 @@ import type { Coordinates, Discovery } from './data';
 
 type Pin = { at: Coordinates; icon: L.DivIcon; title: string; onClick?: () => void; z?: number };
 
-export function TourMap({ origin, from, here, to, route, stops = [], candidates = [], activeIndex = 0, onSelectCandidate, bottomInset = 0, compact = false, full = false }: { origin: Coordinates; from: Coordinates; here?: Coordinates; to: Coordinates; route?: Coordinates[]; stops?: Discovery[]; candidates?: Discovery[]; activeIndex?: number; onSelectCandidate?: (discovery: Discovery) => void; bottomInset?: number; compact?: boolean; full?: boolean }) {
+export function TourMap({ origin, from, here, to, legs = [], stops = [], candidates = [], activeIndex = 0, onSelectCandidate, bottomInset = 0, compact = false, full = false }: { origin: Coordinates; from: Coordinates; here?: Coordinates; to: Coordinates; legs?: { coordinates: Coordinates[]; distance: number }[]; stops?: Discovery[]; candidates?: Discovery[]; activeIndex?: number; onSelectCandidate?: (discovery: Discovery) => void; bottomInset?: number; compact?: boolean; full?: boolean }) {
   const element = useRef<HTMLDivElement | null>(null); const mapRef = useRef<L.Map | null>(null); const group = useRef<L.LayerGroup | null>(null);
   const selectRef = useRef(onSelectCandidate); selectRef.current = onSelectCandidate;
   const drawRef = useRef<() => void>(() => {}); const fitRef = useRef<() => void>(() => {});
@@ -15,7 +15,9 @@ export function TourMap({ origin, from, here, to, route, stops = [], candidates 
     const map = mapRef.current; if (!map) return;
     const metres = (a: Coordinates, b: Coordinates) => map.distance(a, b);
     const chain: Coordinates[] = [origin, ...stops.map(stop => stop.coordinates)];
-    const activePoints = route?.length ? route : [from, to];
+    // Each leg gets its real street geometry when routing supplied one.
+    const legLine = (index: number): Coordinates[] => legs[index]?.coordinates?.length ? legs[index].coordinates : [chain[index], chain[index + 1]];
+    const activePoints = legs[activeIndex]?.coordinates?.length ? legs[activeIndex].coordinates : [from, to];
     const youAreHere = here ?? from;
 
     const draw = () => {
@@ -50,17 +52,18 @@ export function TourMap({ origin, from, here, to, route, stops = [], candidates 
         });
       });
 
-      for (let i = 0; i < activeIndex && i + 1 < chain.length; i++) L.polyline([chain[i], chain[i + 1]], { color: '#7d8a80', weight: 3, opacity: .5, dashArray: '2 7' }).addTo(layers);
+      for (let i = 0; i < activeIndex && i + 1 < chain.length; i++) L.polyline(legLine(i), { color: '#7d8a80', weight: 3, opacity: .5, dashArray: '2 7' }).addTo(layers);
       L.polyline(activePoints, { color: '#ee6941', weight: 5, opacity: .96 }).addTo(layers);
-      for (let i = activeIndex + 1; i + 1 < chain.length; i++) L.polyline([chain[i], chain[i + 1]], { color: '#ee6941', weight: 3.5, opacity: .58, dashArray: '7 9' }).addTo(layers);
+      for (let i = activeIndex + 1; i + 1 < chain.length; i++) L.polyline(legLine(i), { color: '#ee6941', weight: 3.5, opacity: .58, dashArray: '7 9' }).addTo(layers);
 
       // How far each leg actually is, so the cost of the walk is legible up front.
       const clearance = (at: L.Point) => Math.min(...placed.map(entry => entry.point.distanceTo(at)), Infinity);
       if (!compact) for (let i = activeIndex; i + 1 < chain.length; i++) {
-        const distance = Math.round(metres(chain[i], chain[i + 1])); if (distance < 60) continue;
-        const a = map.latLngToLayerPoint(chain[i]); const b = map.latLngToLayerPoint(chain[i + 1]);
-        const span = Math.hypot(b.x - a.x, b.y - a.y); if (span < 54) continue;
-        const mid = L.point((a.x + b.x) / 2, (a.y + b.y) / 2);
+        const distance = Math.round(legs[i]?.distance ?? metres(chain[i], chain[i + 1])); if (distance < 60) continue;
+        const line = legLine(i); const mid0 = line[Math.floor(line.length / 2)] ?? chain[i];
+        const a = map.latLngToLayerPoint(line[Math.max(0, Math.floor(line.length / 2) - 1)] ?? chain[i]); const b = map.latLngToLayerPoint(mid0);
+        const span = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const mid = map.latLngToLayerPoint(mid0);
         const off = L.point(-(b.y - a.y) / span * 16, (b.x - a.x) / span * 16);
         // Try either side of the leg, and drop the label rather than stack it on a pin.
         const options = [mid.add(off), mid.subtract(off)].sort((x, y) => clearance(y) - clearance(x));
@@ -87,7 +90,7 @@ export function TourMap({ origin, from, here, to, route, stops = [], candidates 
     // Pixel collisions change with zoom, so the fan has to be recomputed.
     map.on('zoomend', draw);
     return () => { map.off('zoomend', draw); };
-  }, [origin, from, here, to, route, stops, candidates, activeIndex, bottomInset, compact]);
+  }, [origin, from, here, to, legs, stops, candidates, activeIndex, bottomInset, compact]);
 
   return <div className={compact ? 'tour-map compact-map' : full ? 'tour-map full-map' : 'tour-map'} ref={element}>
     {!compact && <button type="button" className="map-recenter" aria-label="Recentre the map" onClick={event => { event.stopPropagation(); fitRef.current(); }}>◎</button>}
