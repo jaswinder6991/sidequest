@@ -7,3 +7,9 @@ export function falPrompt(discovery: Discovery) {
 export function narrationScript(discovery: Discovery) {
   return `${discovery.hook} ${discovery.subtitle} ${discovery.story} Keep the delivery intimate, curious, and unhurried; like a perceptive local friend sharing a secret, never like an audio guide.`;
 }
+
+// Any URL works here: run scripts/generate-visuals.mjs to fill public/discoveries,
+// or set `image` on a discovery to point at a photograph you already have.
+export function visualFor(discovery: Discovery) {
+  return discovery.image ?? `/discoveries/${discovery.id}.jpg`;
+}

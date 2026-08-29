@@ -2,3 +2,85 @@
 .historical-visual{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}.hero-art:after{z-index:1}.hero-art .arch{z-index:1}.reconstructed .arch{opacity:.24}.hero-art p,.hero-art span{z-index:2}.story-tools{display:flex;align-items:center;justify-content:space-between;gap:10px}.reveal-link{border:0;background:transparent;color:#405449;font-size:13px;font-weight:700;padding:0;margin-top:16px;text-align:right}.reveal-link:disabled{cursor:default;color:#819087}
 .tour-map.full-map{inset:0}.map-dot.numbered{display:grid;place-items:center;color:#193027;font:700 11px "DM Mono";border-width:3px}.route-overview,.navigator-screen{padding:0}.route-sheet,.navigator-panel{position:absolute;inset:auto 0 0;background:#f8f4eb;border-radius:25px 25px 0 0;box-shadow:0 -16px 42px #11251d29}.route-sheet{padding:24px 25px 22px}.route-sheet h2,.complete-screen h2{font:600 32px/.98 "Playfair Display";letter-spacing:-1px;margin:0 0 10px}.route-sheet h2 em,.complete-screen h2 em{font-style:italic;color:#ef6740}.route-intro{font-size:13px;line-height:1.4;color:#57645c;margin:0 0 15px}.itinerary{margin:0 0 18px;padding:0;list-style:none;border-top:1px solid #ded8ca}.itinerary li{min-height:49px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #ded8ca;color:#67736a}.itinerary li>b{width:21px;height:21px;border-radius:50%;display:grid;place-items:center;background:#e5e0d6;font:10px "DM Mono"}.itinerary li.next>b{background:#ef6740;color:#fff}.itinerary li div{display:grid;gap:2px}.itinerary li strong{font-size:12px;color:#17271f}.itinerary li span{font-size:10px}.itinerary li i{margin-left:auto;font-style:normal;color:#ef6740;font-size:18px}.navigator-top{position:absolute;top:88px;left:18px;right:18px;display:flex;flex-direction:column;gap:4px;align-items:flex-start}.navigator-top span,.navigator-top strong{background:#fffdf9e8;padding:6px 8px;border-radius:4px;box-shadow:0 2px 10px #1a21191b}.navigator-top span{font:9px "DM Mono";letter-spacing:.8px;color:#df5635}.navigator-top strong{font-size:13px}.navigator-panel{padding:16px 25px 22px}.walk-progress{display:flex;gap:5px;margin-bottom:14px}.walk-progress i{height:4px;flex:1;border-radius:5px;background:#d9d5ca}.walk-progress i.done{background:#ef6740}.navigator-panel h2{font:600 27px/1 "Playfair Display";letter-spacing:-.7px;margin:0 0 7px}.navigator-panel>p:not(.eyebrow){font-size:13px;line-height:1.36;color:#536057;margin:0}.navigator-actions{display:flex;gap:9px;align-items:end;margin-top:15px}.navigator-actions .primary{flex:1}.voice.mini{margin:0;border:1px solid #d7d1c4;border-radius:11px;padding:7px 11px;width:auto;gap:7px}.voice.mini>span{width:29px;height:29px;font-size:10px}.voice.mini strong{font-size:11px}.complete-screen{display:flex;flex-direction:column;justify-content:center;background:#162820;color:#f9f2e8}.complete-screen .eyebrow{color:#b8c7b9}.complete-screen h2{font-size:48px}.complete-screen>p:not(.eyebrow){font-size:15px;line-height:1.45;color:#c1cec1;max-width:300px}.complete-screen .primary{margin-top:27px}.complete-orbit{width:56px;height:56px;margin-bottom:24px;display:grid;place-items:center;border:1px solid #ef6740;border-radius:50%;color:#ef6740;font-size:22px;box-shadow:0 0 0 9px #ef674022}
 .source-note{margin-top:14px;border-top:1px solid #ddd6c8;padding-top:10px}.source-note summary{list-style:none;display:flex;gap:6px;align-items:center;cursor:pointer;color:#6a756c;font:9px/1.25 "DM Mono";letter-spacing:.15px}.source-note summary::-webkit-details-marker{display:none}.source-note summary span{color:#bd4528;text-transform:uppercase;letter-spacing:.8px}.source-note summary b{margin-left:auto;font-size:13px;transition:transform .18s}.source-note[open] summary b{transform:rotate(180deg)}.source-note ol{margin:9px 0 0;padding-left:15px;color:#657168}.source-note li{font-size:10px;line-height:1.32;margin:0 0 5px}
+
+/* Nothing may become unreachable: the story screen grows with Cala text, the
+   sources accordion and the reveal state, so it must scroll and keep its actions. */
+.screen{overflow-y:auto;overscroll-behavior:contain}
+.route-overview,.navigator-screen{overflow:hidden}
+.story-screen .hero-art{flex-shrink:0}
+.story-screen{padding-bottom:0}.story-screen .story-actions{position:sticky;bottom:0;z-index:3;margin-top:auto;padding:12px 0 24px;background:linear-gradient(#f6f1e8cc,#f6f1e8 20%)}
+.visual-error{margin:10px 0 0;font:10px/1.4 "DM Mono";color:#a2503a}
+.score-total{margin:12px 0 0!important;font:10px "DM Mono"!important;letter-spacing:.4px;color:#5d695f!important;display:flex;justify-content:space-between;border-top:1px solid #ddd7ca;padding-top:9px}
+.score-total b{color:#dc5434;font-size:12px}
+.scores span{text-transform:capitalize}
+.recap{display:grid;gap:11px;margin:26px 0 0;padding:15px 0 0;border-top:1px solid #ffffff26;width:100%;max-width:300px}
+.recap dt{font:9px "DM Mono";letter-spacing:.9px;color:#9db09e}
+.recap dd{margin:3px 0 0;font-size:12px;color:#e7ded1;text-transform:capitalize}
+.detour-sheet{position:relative;width:100%;background:#14251e;color:#f6f1e8;border-radius:22px 22px 0 0;padding:30px 25px 24px;display:flex;flex-direction:column;align-items:center;text-align:center;animation:rise .3s ease-out;max-height:86%;overflow-y:auto}
+.detour-sheet .spark{margin:0 0 14px;flex:none}
+.detour-sheet .eyebrow{color:#b2c1b3;margin-bottom:6px}
+.detour-sheet h2{font:600 33px/1 "Playfair Display";letter-spacing:-1.1px;margin:0 0 8px}
+.detour-sheet .detour-intro{margin:0 0 15px;color:#c4d0c4;font-size:14px;line-height:1.4}
+.detour-sheet .reason-card{width:100%}
+.detour-sheet .primary{margin-top:4px}
+
+/* Map: everything still available to wander to */
+.map-dot.ghost{display:grid;place-items:center;font-size:11px;color:#ffd9a8;border-width:2px;border-color:#f8f2e8cc;cursor:pointer;transition:transform .15s}
+.map-dot.ghost:hover{transform:scale(1.18)}
+.replan-note{border:0;text-align:left;max-width:230px;background:#ef6740;color:#fff;padding:7px 9px;border-radius:5px;font:9px/1.35 "DM Mono";letter-spacing:.2px;box-shadow:0 3px 12px #11251d33}
+.skip-stop{border:0;background:transparent;color:#7c8a7f;font-size:11px;font-weight:700;padding:10px 0 0;width:100%}
+/* Judge a place by looking at it, not by reading a list item */
+.itinerary-thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;flex:none;background:#e5e0d6}
+.visual-fallback{display:grid;place-items:center;background:linear-gradient(135deg,#253b32,var(--accent));color:#ffd4aa}
+.itinerary li{gap:11px}
+.preview-sheet{position:relative;width:100%;background:#fffcf5;color:#12221b;border-radius:22px 22px 0 0;overflow:hidden;animation:rise .26s ease-out;max-height:92%;display:flex;flex-direction:column}
+.preview-sheet .close{color:#fff;text-shadow:0 1px 6px #0007;z-index:2;top:8px}
+.preview-visual{width:100%;height:190px;object-fit:cover;flex:none}
+.preview-body{padding:18px 25px 24px;overflow-y:auto}
+.preview-sheet h2{font:600 30px/1 "Playfair Display";letter-spacing:-1px;margin:0 0 7px}
+.preview-sub{margin:0 0 11px;font-size:14px;font-weight:600;color:#28382f}
+.preview-story{margin:0 0 15px;font-size:13px;line-height:1.45;color:#57645c}
+.preview-body dl{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid #ddd7ca;padding-top:11px;margin:0 0 17px}
+.preview-body dl div+div{border-left:1px solid #ddd7ca;padding-left:10px}
+.preview-body dt{font:8px "DM Mono";letter-spacing:.5px;color:#68746b}
+.preview-body dd{margin:4px 0 0;font-size:11px;font-weight:700}
+.preview-body .skip{color:#7c8a7f;width:100%;margin-top:12px}
+.detour-visual{width:100%;height:118px;object-fit:cover;border-radius:11px;margin-bottom:13px;flex:none}
+/* Fallback echoes the story screen's arch motif so a missing file still looks composed */
+.visual-fallback{position:relative;overflow:hidden;display:block;background:linear-gradient(133deg,#253b32,#1e2c26 57%,var(--accent))}
+.visual-fallback .arch{position:absolute;bottom:-18%;width:46%;height:104%;border-radius:50% 50% 0 0;background:#121c17aa}
+.visual-fallback .arch.a{left:-8%}
+.visual-fallback .arch.b{right:-14%;height:88%;background:#1c2a23aa}
+.visual-fallback span{position:absolute;left:0;right:0;bottom:11px;z-index:1;text-align:center;color:#ffd4aa;font:9px "DM Mono";letter-spacing:.9px;padding:0 10px}
+.itinerary-thumb.visual-fallback span{display:none}
+.itinerary-thumb.visual-fallback .arch{bottom:-22%}
+/* The itinerary is a list of choices, so every row is a real control */
+.itinerary li{padding:0}
+.itinerary-row{display:flex;align-items:center;gap:11px;width:100%;min-height:49px;padding:5px 2px;border:0;background:transparent;text-align:left;color:inherit;border-radius:9px}
+.itinerary-row:hover{background:#00000008}
+.itinerary-row:active{background:#00000012}
+.itinerary-row:focus-visible{outline:2px solid #ef6740;outline-offset:1px}
+.itinerary-row>i{margin-left:auto;font-style:normal;color:#ef6740;font-size:18px}
+.itinerary li:not(.next) .itinerary-row>i{color:#b6b0a3}
+.preview-body .skip.danger{color:#bd4528}
+.replan-note.inline{display:block;width:100%;margin:0 0 13px}
+.preview-body .secondary.danger{width:100%;min-height:48px;border-color:#e0b3a6;color:#bd4528}
+.preview-body .secondary.danger:hover{background:#bd45280d}
+.on-route-note{margin:0!important;text-align:center;font:10px "DM Mono"!important;letter-spacing:.4px;color:#7c8a7f!important}
+/* The reconstruction is already loaded; revealing it is a fade, not a fetch */
+.historical-visual{opacity:0;transition:opacity .85s ease}
+.historical-visual.revealed{opacity:1}
+.hero-art .arch{transition:opacity .85s ease}
+
+/* You are here: a soft pulse under a solid core, the usual map convention */
+.map-here{position:relative;display:block;width:22px;height:22px}
+.map-here i{position:absolute;inset:0;border-radius:50%;background:#2f6df6;opacity:.22;animation:hereping 2.4s ease-out infinite}
+.map-here b{position:absolute;inset:5px;border-radius:50%;background:#2f6df6;border:3px solid #fff;box-shadow:0 2px 8px #0e1a2e66}
+@keyframes hereping{0%{transform:scale(.55);opacity:.42}70%{transform:scale(1.55);opacity:0}100%{transform:scale(1.55);opacity:0}}
+@media (prefers-reduced-motion: reduce){.map-here i{animation:none;transform:scale(1.1)}}
+.map-dot.numbered.done{color:#6d7a70;border-color:#efe9dccc;font-size:12px}
+.estimate-chip{font:8px "DM Mono";letter-spacing:.7px;text-transform:uppercase;font-style:normal;color:#8a7566;background:#fffdf9e8;padding:4px 7px;border-radius:4px;box-shadow:0 2px 10px #1a21191b}
+/* A long itinerary must not eat the map: cap the sheet, scroll the list inside it */
+.route-sheet{max-height:62%;display:flex;flex-direction:column}
+.route-sheet .itinerary{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.route-sheet .primary{flex:none}
