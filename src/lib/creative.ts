@@ -1,7 +1,7 @@
 import type { Discovery } from '../data';
 
 export function falPrompt(discovery: Discovery) {
-  return `${discovery.visualDirection} Compose vertically for a premium mobile story card. Preserve the real place's architecture. Avoid captions, logos, watermarks, distorted faces, anachronistic objects, or sensationalised violence.`;
+  return `Cinematic historical reconstruction for SideQuest: ${discovery.visualDirection} It should feel like a still from a prestige historical film: period-accurate clothing and objects, dramatic natural light, tactile stone and weather, restrained colour grade, emotionally believable people in the distance, and documentary-level respect for the real place. Compose vertically for a premium mobile story card. Preserve the real architecture. Avoid captions, logos, watermarks, split screens, modern intrusions, distorted faces, anachronistic objects, or sensationalised violence.`;
 }
 
 export function narrationScript(discovery: Discovery) {

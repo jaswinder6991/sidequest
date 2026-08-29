@@ -20,7 +20,7 @@ that feels more like wandering with an unusually perceptive local friend.
 - An adaptive, interrupt-worthy detour
 - “Why this?” recommendation transparency
 - Browser speech fallback, with an ElevenLabs streaming endpoint ready
-- Fal image-generation endpoint ready for high-impact historical visuals
+- On-demand Fal historical reconstructions: a cinematic “Reveal the past” moment, generated only when a guest taps it
 
 ## Stack
 

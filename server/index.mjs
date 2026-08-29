@@ -28,8 +28,8 @@ app.post('/api/route', async (request, response) => {
   try {
     const ors = await fetch(url, { method: 'POST', headers: { Authorization: process.env.OPENROUTESERVICE_API_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify({ coordinates: [[fromLng, fromLat], [toLng, toLat]] }) });
     if (!ors.ok) return response.status(502).json({ error: 'Routing request failed' });
-    const result = await ors.json(); const feature = result.features?.[0];
-    response.json({ coordinates: feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]), duration: feature.properties.summary.duration });
+    const result = await ors.json(); const feature = result.features?.[0]; const firstStep = feature?.properties?.segments?.[0]?.steps?.[0];
+    response.json({ coordinates: feature.geometry.coordinates.map(([lng, lat]) => [lat, lng]), duration: feature.properties.summary.duration, distance: feature.properties.summary.distance, instruction: firstStep?.instruction });
   } catch { response.status(502).json({ error: 'Routing is unreachable' }); }
 });
 
